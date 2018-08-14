@@ -1,0 +1,27 @@
+version: 2
+jobs:
+  build:
+    docker:
+    - image: circleci/openjdk:8-jdk
+    working_directory: ~/repo
+    environment:
+      MAVEN_OPTS: -Xmx3200m
+    steps:
+    - checkout
+    - run: mvn --batch-mode dependency:go-offline
+  deploy:
+    docker:
+    - image: circleci/openjdk:8-jdk
+    working_directory: ~/repo
+    steps:
+    - checkout
+    - run: echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > ${HOME}/gcloud-service-key.json
+    - run: mvn --batch-mode compile exec:java -Pdataflow-runner -Dexec.mainClass="org.apache.beam.examples.WordCount" -Dexec.args="--project=bq-workshop-160115 --tempLocation=gs://vincegonzalez/tmp --output=gs://vincegonzalez/tmp --usePublicIps=false --runner=DataflowRunner"
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+    - build
+    - deploy:
+        requires:
+        - build
