@@ -16,7 +16,17 @@ jobs:
     steps:
     - checkout
     - run: echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > ${HOME}/gcloud-service-key.json
-    - run: mvn --batch-mode compile exec:java -Pdataflow-runner -Dexec.mainClass="org.apache.beam.examples.WordCount" -Dexec.args="--project=${GOOGLE_PROJECT_ID} --tempLocation=gs://${DATAFLOW_TEMP_BUCKET}/tmp --output=gs://${DATAFLOW_TEMP_BUCKET}/tmp --usePublicIps=false --runner=DataflowRunner"
+    - save_cache: # saves the project dependencies
+        paths:
+          - ~/.m2
+        key: beam-word-count-{{ checksum "pom.xml" }}
+      
+    - run: mvn compile
+    - run: mvn test # run the actual tests
+      
+    - store_test_results: # uploads the test metadata from the `target/surefire-reports` directory so that it can show up in the CircleCI dashboard. 
+        path: target/surefire-reports
+    - run: mvn --batch-mode compile exec:java -Pdataflow-runner -Dexec.mainClass="org.apache.beam.examples.WordCount" -Dexec.args="--project=${GOOGLE_PROJECT_ID} --tempLocation=gs://${DATAFLOW_TEMP_BUCKET}/tmp --output=gs://${DATAFLOW_TEMP_BUCKET}/tmp --usePublicIps=true --runner=DataflowRunner"
 workflows:
   version: 2
   build-and-deploy:
